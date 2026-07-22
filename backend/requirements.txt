@@ -1,0 +1,16 @@
+fastapi>=0.121,<1
+uvicorn>=0.38,<1
+SQLAlchemy>=2.0.44,<3
+alembic>=1.17,<2
+pydantic>=2.12,<3
+pydantic-settings>=2.12,<3
+PyJWT>=2.10,<3
+httpx>=0.28,<1
+bleach>=6.2,<7
+tinycss2>=1.4,<2
+python-dotenv>=1.2,<2
+python-multipart>=0.0.20,<1
+cryptography>=44,<46
+APScheduler>=3.11,<4
+Pillow>=11,<13
+pytest>=9,<10
