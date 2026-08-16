@@ -32,13 +32,13 @@ def upgrade() -> None:
     op.create_table(
         "company_settings",
         sa.Column("id", BIGINT, primary_key=True),
-        sa.Column("company_name", sa.String(length=100), nullable=False, server_default="Manager Platform"),
+        sa.Column("company_name", sa.String(length=100), nullable=False, server_default="企业工作管理平台"),
         sa.Column("logo_url", sa.String(length=500), nullable=True),
         sa.Column(
             "footer_text",
             sa.String(length=200),
             nullable=False,
-            server_default="MANAGER PLATFORM · Open Source Work Management",
+            server_default="WORK MANAGEMENT DESK · 企业工作管理平台 MVP",
         ),
         *audit_columns(),
     )
@@ -47,7 +47,7 @@ def upgrade() -> None:
         INSERT INTO company_settings
           (id, company_name, logo_url, footer_text, created_at, updated_at, deleted_at, created_by, updated_by)
         VALUES
-          (1, 'Manager Platform', NULL, 'MANAGER PLATFORM · Open Source Work Management', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL, NULL, NULL)
+          (1, '企业工作管理平台', NULL, 'WORK MANAGEMENT DESK · 企业工作管理平台 MVP', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL, NULL, NULL)
         """
     )
 

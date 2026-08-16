@@ -47,7 +47,7 @@ export default function CompanySettingsPage() {
                 value={companyName}
                 onChange={(e) => setCompanyName(e.target.value.slice(0, 100))}
                 className="mt-1.5 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800 outline-none focus:border-[var(--theme-accent)]"
-                placeholder="Manager Platform"
+                placeholder="企业工作管理平台"
               />
             </label>
 
@@ -57,7 +57,7 @@ export default function CompanySettingsPage() {
                 value={footerText}
                 onChange={(e) => setFooterText(e.target.value.slice(0, 200))}
                 className="mt-1.5 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-800 outline-none focus:border-[var(--theme-accent)]"
-                placeholder="MANAGER PLATFORM · Open Source Work Management"
+                placeholder="WORK MANAGEMENT DESK · 企业工作管理平台 MVP"
               />
             </label>
 

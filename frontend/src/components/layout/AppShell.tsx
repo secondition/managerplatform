@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Bell, ChevronLeft, LogOut, Settings } from 'lucide-react';
+import { ChevronLeft, LogOut, Settings } from 'lucide-react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { logout as apiLogout } from '@/api/auth';
 import Avatar from '@/components/user/Avatar';
@@ -7,18 +7,20 @@ import ThemePicker from '@/components/layout/ThemePicker';
 import { usePublicSettings } from '@/features/settings/hooks';
 import { useAuthStore } from '@/stores/authStore';
 import AvatarPhysicsField from '@/features/playground/AvatarPhysicsField';
+import NotificationCenter from '@/features/notifications/NotificationCenter';
 
 type NavItem = {
   to: string;
   label: string;
   permission?: string | null;
+  ownerOnly?: boolean;
   disabled?: boolean;
   disabledHint?: string;
 };
 
 const NAV: NavItem[] = [
   { to: '/daily', label: '日报', permission: 'feature:daily' },
-  { to: '/chat', label: 'AI 大脑', disabled: true, disabledHint: '功能预留，暂未开放' },
+  { to: '/chat', label: 'AI 大脑' },
   { to: '/traffic-light', label: '红绿灯', permission: 'feature:traffic' },
   { to: '/okr', label: 'OKR', permission: 'feature:okr' },
   { to: '/subscription/daily', label: '订阅·日报', permission: 'feature:daily' },
@@ -31,17 +33,16 @@ const NAV: NavItem[] = [
 ];
 
 const ADMIN_NAV: NavItem[] = [
+  { to: '/admin/notification-settings', label: '通知设置', permission: 'admin:notification' },
   { to: '/admin/employees', label: '人员管理', permission: 'admin:employee' },
   { to: '/admin/sync-history', label: '同步记录', permission: 'admin:employee' },
-  { to: '/admin/permissions', label: '权限管理', permission: 'admin:employee' },
+  { to: '/admin/permissions', label: '权限管理', ownerOnly: true },
   { to: '/admin/departments', label: '部门管理', permission: 'admin:department' },
   { to: '/admin/scoring-settings', label: '评分设置', permission: 'admin:ai' },
   {
     to: '/admin/agent-settings',
     label: '智能体设置',
-    permission: 'admin:ai',
-    disabled: true,
-    disabledHint: '功能预留，暂未开放',
+    permission: 'admin:agent',
   },
   { to: '/admin/company-settings', label: '企业设置', permission: 'admin:settings' },
 ];
@@ -53,7 +54,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
   const companySettings = usePublicSettings();
-  const companyName = companySettings.data?.company_name ?? 'Manager Platform';
+  const companyName = companySettings.data?.company_name ?? '管理工作台';
   const logoUrl = companySettings.data?.logo_url;
   const footerText = companySettings.data?.footer_text;
   const isAdmin = location.pathname === '/admin' || location.pathname.startsWith('/admin/');
@@ -61,7 +62,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
     hasPermission('admin:employee') ||
     hasPermission('admin:department') ||
     hasPermission('admin:ai') ||
-    hasPermission('admin:settings');
+    hasPermission('admin:agent') ||
+    hasPermission('admin:settings') ||
+    hasPermission('admin:notification');
 
   const handleLogout = async () => {
     try {
@@ -74,6 +77,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   };
 
   const navItems = (isAdmin ? ADMIN_NAV : NAV).filter((item) => {
+    if (item.ownerOnly && user?.role !== 'owner') return false;
     if (item.disabled) return true;
     if (!item.permission) return true;
     return hasPermission(item.permission);
@@ -113,9 +117,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
             <ThemePicker />
             {!isAdmin && (
               <>
-                <button disabled className="rounded p-1 text-slate-300" title="通知中心即将上线">
-                  <Bell size={14} />
-                </button>
+                <NotificationCenter />
                 {canAdmin && (
                   <NavLink to="/admin" className="flex items-center gap-1 text-[var(--theme-accent)] hover:opacity-80" title="管理后台">
                     <Settings size={13} />

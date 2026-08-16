@@ -1,7 +1,7 @@
 import type { WordItem } from './types';
 
-export const TEMPLATE_WORDS: Omit<WordItem, 'distance' | 'sequence'>[] = [
-  { id: 'main-title', text: '企业文化', color: 'white', x: 43.55, y: 43.5, isMain: true, direction: 'top' },
+export const RAW_WORDS: Omit<WordItem, 'distance' | 'sequence'>[] = [
+  { id: 'xinxuan', text: '心选电商', color: 'white', x: 43.55, y: 43.5, isMain: true, direction: 'top' },
   { id: 'tupo', text: '突破', color: 'grey', x: 63.5, y: 34.5, direction: 'right' },
   { id: 'breakthrough', text: 'BREAK THROUGH', color: 'light-grey', x: 81.0, y: 40.5, direction: 'right' },
   { id: 'gongtong', text: '沟通即效率', color: 'red', x: 59.25, y: 17.25, direction: 'top' },
@@ -27,11 +27,12 @@ export const TEMPLATE_WORDS: Omit<WordItem, 'distance' | 'sequence'>[] = [
   { id: 'chuangxinjishengcun', text: '创新即生存', color: 'red', x: 72.5, y: 49.5, direction: 'right' },
 ];
 
-export function getTemplateWords(launchMode: string): WordItem[] {
+export function getProcessedWords(launchMode: string): WordItem[] {
   const cx = 43.55;
   const cy = 43.5;
 
-  const withDistance = TEMPLATE_WORDS.map((w) => {
+  // 1. Calculate distance for each item relative to center of red block
+  const withDistance = RAW_WORDS.map((w) => {
     let dist = 0;
     if (!w.isMain) {
       dist = Math.sqrt((w.x - cx) * (w.x - cx) + (w.y - cy) * (w.y - cy));
@@ -42,6 +43,7 @@ export function getTemplateWords(launchMode: string): WordItem[] {
   const mainItem = withDistance.find((w) => w.isMain);
   const regularItems = withDistance.filter((w) => !w.isMain);
 
+  // Sort regular items ascending by distance (closest to center first)
   regularItems.sort((a, b) => (a.distance || 0) - (b.distance || 0));
 
   const sorted = mainItem ? [mainItem, ...regularItems] : regularItems;

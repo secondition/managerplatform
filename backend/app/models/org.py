@@ -70,10 +70,10 @@ class CompanySetting(Base, TimestampMixin, AuditMixin):
     __tablename__ = "company_settings"
 
     id: Mapped[int] = mapped_column(BigInt, primary_key=True)
-    company_name: Mapped[str] = mapped_column(String(100), default="Manager Platform", nullable=False)
+    company_name: Mapped[str] = mapped_column(String(100), default="企业工作管理平台", nullable=False)
     logo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     footer_text: Mapped[str] = mapped_column(
         String(200),
-        default="MANAGER PLATFORM · Open Source Work Management",
+        default="WORK MANAGEMENT DESK · 企业工作管理平台 MVP",
         nullable=False,
     )

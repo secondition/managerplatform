@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react';
-import { BookOpen, Bot, FileText, Grid2X2, Lightbulb } from 'lucide-react';
+import { BookOpen, FileText, Grid2X2, Lightbulb } from 'lucide-react';
 
 function ReservedPage({ icon: Icon, title }: { icon: LucideIcon; title: string }) {
   return (
@@ -15,10 +15,6 @@ function ReservedPage({ icon: Icon, title }: { icon: LucideIcon; title: string }
       </section>
     </div>
   );
-}
-
-export function ChatPage() {
-  return <ReservedPage icon={Bot} title="AI 大脑与自定义智能体" />;
 }
 
 export function InspirationsPage() {

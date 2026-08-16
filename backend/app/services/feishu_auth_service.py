@@ -193,6 +193,8 @@ class FeishuAuthService:
             feishu_union_id=info.union_id,
             feishu_open_id=info.open_id,
             feishu_user_id=info.user_id,
+            feishu_message_receive_id=info.open_id,
+            feishu_message_receive_id_type="open_id",
             status="active",
             sync_source="feishu",
         )
@@ -228,6 +230,8 @@ class FeishuAuthService:
             user.avatar_url = info.avatar_url
         user.feishu_open_id = info.open_id
         user.feishu_user_id = info.user_id
+        user.feishu_message_receive_id = info.open_id
+        user.feishu_message_receive_id_type = "open_id"
         user.updated_by = user.id
 
     def _enabled_permissions(self, user: User) -> list[str]:

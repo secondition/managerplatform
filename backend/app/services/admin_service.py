@@ -4,6 +4,8 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.permissions import ADVANCED_PERMISSIONS
+from app.core.security import utcnow
 from app.models.org import Department, Group, GroupMember
 from app.models.user import User, UserPermission
 from app.schemas.admin import (
@@ -14,7 +16,6 @@ from app.schemas.admin import (
     GroupUpdate,
 )
 from app.services.session_service import revoke_user_refresh_tokens
-from app.core.security import utcnow
 
 
 class AdminService:
@@ -49,6 +50,24 @@ class AdminService:
 
     def set_permissions(self, user_id: int, permissions: list[str]) -> dict:
         user = self._get_user(user_id)
+        existing_permissions = set(
+            self.db.scalars(
+                select(UserPermission.permission).where(
+                    UserPermission.user_id == user.id,
+                    UserPermission.enabled.is_(True),
+                    UserPermission.deleted_at.is_(None),
+                )
+            ).all()
+        )
+        requested_permissions = set(permissions)
+        advanced_permissions = set(ADVANCED_PERMISSIONS)
+        if self.actor.role != "owner" and (
+            existing_permissions & advanced_permissions
+        ) != (requested_permissions & advanced_permissions):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the owner can assign admin permissions",
+            )
         self._set_permissions(user, permissions)
         user.updated_by = self.actor.id
         self.db.commit()

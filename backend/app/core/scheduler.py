@@ -8,20 +8,26 @@ from __future__ import annotations
 
 import logging
 import os
-from datetime import timedelta
+from datetime import date, timedelta
 from pathlib import Path
 from typing import BinaryIO
 
 from apscheduler.schedulers.background import BackgroundScheduler
-from sqlalchemy import select
+from sqlalchemy import and_, or_, select
 
 from app.core.config import settings
 from app.db.session import SessionLocal
 from app.models.ai import AiFeatureFlags, AiTask
-from app.models.user import User
+from app.models.daily import DailyReport, DailyTask, ProblemSolution
+from app.models.traffic import TrafficMetric, TrafficMetricAssignment, TrafficMetricValue
+from app.models.user import User, UserPermission
 from app.services.ai.provider import AiProviderError
 from app.services.ai_service import AiService
 from app.services.daily_service import materialize_recurring_tasks
+from app.services.feishu_message_service import deliver_pending_feishu_notifications
+from app.services.notification_service import NotificationService
+from app.core.permissions import FEATURE_DAILY, FEATURE_TRAFFIC
+from app.utils.dates import last_completed_week_start
 from app.utils.time import local_today
 from app.core.security import utcnow
 
@@ -217,6 +223,162 @@ def materialize_recurring_daily_tasks() -> None:
         db.close()
 
 
+def _users_with_feature(db, permission: str) -> list[User]:
+    return list(
+        db.scalars(
+            select(User)
+            .join(UserPermission, UserPermission.user_id == User.id)
+            .where(
+                User.status == "active",
+                User.deleted_at.is_(None),
+                UserPermission.permission == permission,
+                UserPermission.enabled.is_(True),
+                UserPermission.deleted_at.is_(None),
+            )
+            .order_by(User.id)
+        ).all()
+    )
+
+
+def notify_missing_daily_reports(check_date: date | None = None, slot: str = "1000") -> int:
+    """Notify active daily users who have no own content for the date."""
+    db = SessionLocal()
+    created = 0
+    try:
+        target_date = check_date or local_today()
+        users = _users_with_feature(db, FEATURE_DAILY)
+        task_user_ids = set(
+            db.scalars(
+                select(DailyTask.user_id)
+                .join(DailyReport, DailyReport.id == DailyTask.report_id)
+                .where(
+                    DailyReport.report_date == target_date,
+                    DailyTask.deleted_at.is_(None),
+                    DailyReport.deleted_at.is_(None),
+                )
+            ).all()
+        )
+        problem_user_ids = set(
+            db.scalars(
+                select(ProblemSolution.user_id)
+                .join(DailyReport, DailyReport.id == ProblemSolution.report_id)
+                .where(
+                    DailyReport.report_date == target_date,
+                    ProblemSolution.deleted_at.is_(None),
+                    DailyReport.deleted_at.is_(None),
+                )
+            ).all()
+        )
+        for user in users:
+            if user.id in task_user_ids or user.id in problem_user_ids:
+                continue
+            notification = NotificationService(db).notify(
+                recipient=user,
+                notification_type="daily.missing",
+                title="日报尚未填写",
+                body=f"你今天（{target_date.isoformat()}）还没有填写日报，请及时补充。",
+                action_url=f"/daily?date={target_date.isoformat()}",
+                dedupe_key=f"daily.missing:{user.id}:{target_date.isoformat()}:{slot}",
+                metadata={"date": target_date.isoformat(), "slot": slot},
+            )
+            if notification is not None and notification.id is None:
+                created += 1
+        db.commit()
+        return created
+    except Exception:
+        db.rollback()
+        logger.exception("daily missing notification scan failed")
+        return 0
+    finally:
+        db.close()
+
+
+def notify_missing_weekly_metrics(target_week_start: date | None = None) -> int:
+    """Aggregate missing values from the most recently completed traffic week."""
+    db = SessionLocal()
+    created = 0
+    try:
+        week_start = target_week_start or last_completed_week_start(local_today())
+        rows = db.execute(
+            select(
+                TrafficMetricAssignment.assignee_id,
+                TrafficMetric.id,
+                TrafficMetric.name,
+            )
+            .join(TrafficMetric, TrafficMetric.id == TrafficMetricAssignment.metric_id)
+            .join(User, User.id == TrafficMetricAssignment.assignee_id)
+            .join(
+                UserPermission,
+                and_(
+                    UserPermission.user_id == User.id,
+                    UserPermission.permission == FEATURE_TRAFFIC,
+                    UserPermission.enabled.is_(True),
+                    UserPermission.deleted_at.is_(None),
+                ),
+            )
+            .outerjoin(
+                TrafficMetricValue,
+                and_(
+                    TrafficMetricValue.assignment_id == TrafficMetricAssignment.id,
+                    TrafficMetricValue.week_start == week_start,
+                    TrafficMetricValue.deleted_at.is_(None),
+                ),
+            )
+            .where(
+                TrafficMetricAssignment.effective_from <= week_start,
+                TrafficMetricAssignment.deleted_at.is_(None),
+                TrafficMetric.deleted_at.is_(None),
+                User.status == "active",
+                User.deleted_at.is_(None),
+                or_(TrafficMetricValue.id.is_(None), TrafficMetricValue.value.is_(None)),
+            )
+            .order_by(TrafficMetricAssignment.assignee_id, TrafficMetric.name)
+        ).all()
+        grouped: dict[int, list[tuple[int, str]]] = {}
+        for assignee_id, metric_id, metric_name in rows:
+            grouped.setdefault(assignee_id, []).append((metric_id, metric_name))
+        users = {
+            user.id: user
+            for user in _users_with_feature(db, FEATURE_TRAFFIC)
+            if user.id in grouped
+        }
+        for user_id, missing in grouped.items():
+            user = users.get(user_id)
+            if user is None:
+                continue
+            names = [name for _, name in missing]
+            summary = "、".join(names[:5])
+            if len(names) > 5:
+                summary += f" 等 {len(names)} 项"
+            notification = NotificationService(db).notify(
+                recipient=user,
+                notification_type="traffic.weekly_metric_missing",
+                title="上周红绿灯指标尚未填写",
+                body=f"上周（{week_start.isoformat()}）有 {len(names)} 项周指标未填写：{summary}。",
+                action_url="/traffic-light?tab=pending",
+                dedupe_key=f"traffic.weekly_metric_missing:{user.id}:{week_start.isoformat()}",
+                metadata={
+                    "week_start": week_start.isoformat(),
+                    "metric_ids": [metric_id for metric_id, _ in missing],
+                },
+            )
+            if notification is not None and notification.id is None:
+                created += 1
+        db.commit()
+        return created
+    except Exception:
+        db.rollback()
+        logger.exception("weekly metric missing notification scan failed")
+        return 0
+    finally:
+        db.close()
+
+
+def run_daily_1700_notifications() -> None:
+    """Run the evening missing-report reminder independently from AI scoring."""
+    notify_missing_daily_reports(slot="1700")
+
+
 def start_scheduler() -> BackgroundScheduler | None:
     global _scheduler, _scheduler_lock
     if _scheduler is not None:
@@ -231,8 +393,25 @@ def start_scheduler() -> BackgroundScheduler | None:
         "cron", hour=0, minute=5, id="materialize_recurring_tasks", replace_existing=True,
     )
     scheduler.add_job(
+        lambda: notify_missing_daily_reports(slot="1000"),
+        "cron", hour=10, minute=0, id="daily_missing_morning", replace_existing=True,
+    )
+    scheduler.add_job(
+        run_daily_1700_notifications,
+        "cron", hour=17, minute=0, id="daily_missing_evening", replace_existing=True,
+    )
+    scheduler.add_job(
         generate_daily_scores_for_all_active_users,
-        "cron", hour=17, minute=0, id="daily_score_initial", replace_existing=True,
+        "cron", hour=17, minute=30, id="daily_score_evening", replace_existing=True,
+    )
+    scheduler.add_job(
+        notify_missing_weekly_metrics,
+        "cron", day_of_week="mon", hour=10, minute=5,
+        id="traffic_weekly_metric_missing", replace_existing=True,
+    )
+    scheduler.add_job(
+        deliver_pending_feishu_notifications,
+        "interval", minutes=1, id="feishu_notification_delivery", replace_existing=True,
     )
     scheduler.add_job(
         generate_daily_suggestions_for_all_active_users,
@@ -240,7 +419,7 @@ def start_scheduler() -> BackgroundScheduler | None:
     )
     scheduler.add_job(
         generate_daily_scores_for_all_active_users,
-        "cron", hour=23, minute=50, id="daily_score_final", replace_existing=True,
+        "cron", hour=23, minute=30, id="daily_score_final", replace_existing=True,
     )
     scheduler.add_job(
         generate_weekly_scores_for_all_active_users,

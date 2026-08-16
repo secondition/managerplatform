@@ -6,7 +6,7 @@ import type {
 import { api } from './client';
 
 // `end` is the Monday (YYYY-MM-DD) of the newest week in the window; omit to
-// let the server default to the last completed week. `count` = window size.
+// let the server default to the current week. `count` = window size.
 function windowQuery(end: string | null, count: number): string {
   const params = new URLSearchParams({ count: String(count) });
   if (end) params.set('end', end);
@@ -31,8 +31,8 @@ export interface CreateMetricInput {
   viewer_ids?: number[];
 }
 
-export function createMetric(input: CreateMetricInput): Promise<TrafficMetricOut> {
-  return api<TrafficMetricOut>('/traffic/metrics', { method: 'POST', body: input });
+export function createMetric(input: CreateMetricInput): Promise<TrafficMetricOut[]> {
+  return api<TrafficMetricOut[]>('/traffic/metrics', { method: 'POST', body: input });
 }
 
 export interface UpdateMetricInput {
@@ -46,8 +46,8 @@ export interface UpdateMetricInput {
   viewer_ids?: number[];
 }
 
-export function updateMetric(id: number, input: UpdateMetricInput): Promise<TrafficMetricOut> {
-  return api<TrafficMetricOut>(`/traffic/metrics/${id}`, { method: 'PATCH', body: input });
+export function updateMetric(id: number, input: UpdateMetricInput): Promise<TrafficMetricOut[]> {
+  return api<TrafficMetricOut[]>(`/traffic/metrics/${id}`, { method: 'PATCH', body: input });
 }
 
 export function deleteMetric(id: number): Promise<null> {
@@ -62,11 +62,11 @@ export interface UpsertValueInput {
 
 // `weekStart` is the Monday (YYYY-MM-DD) of the target week.
 export function upsertMetricValue(
-  metricId: number,
+  assignmentId: number,
   weekStart: string,
   input: UpsertValueInput,
 ): Promise<TrafficMetricOut> {
-  return api<TrafficMetricOut>(`/traffic/metrics/${metricId}/values/${weekStart}`, {
+  return api<TrafficMetricOut>(`/traffic/metric-assignments/${assignmentId}/values/${weekStart}`, {
     method: 'PATCH',
     body: input,
   });

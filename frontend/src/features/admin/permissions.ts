@@ -14,9 +14,11 @@ export const FEATURE_POINTS: PermissionPoint[] = [
 ];
 
 export const ADVANCED_POINTS: PermissionPoint[] = [
+  { key: 'admin:notification', label: '通知设置' },
   { key: 'admin:employee', label: '员工管理' },
   { key: 'admin:department', label: '部门管理' },
   { key: 'admin:ai', label: '评分设置' },
+  { key: 'admin:agent', label: '智能体设置' },
   { key: 'admin:settings', label: '企业设置' },
 ];
 

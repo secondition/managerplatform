@@ -32,13 +32,6 @@ for setting up the Feishu app.
 - `npm run lint` — type-check only
 - `npm run preview` — preview the production build
 
-## 登录文化云图模板
-
-登录页背景展示一组企业文化词条的文化云图动画（`CultureWordCloudTemplate`），词条数据来源
-`src/features/auth/wordcloud/templateWords.ts`。该区域为纯前端静态模板，**不接入后端、不支
-持后台自定义**。企业 IT 如需修改词条，直接编辑 `templateWords.ts` 文件即可；运行时无配置
-入口。
-
 ## Structure
 
 ```

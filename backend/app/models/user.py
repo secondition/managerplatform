@@ -33,6 +33,8 @@ class User(Base, TimestampMixin, AuditMixin):
     feishu_union_id: Mapped[str] = mapped_column(String(80), nullable=False)
     feishu_open_id: Mapped[str] = mapped_column(String(80), nullable=False)
     feishu_user_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    feishu_message_receive_id: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    feishu_message_receive_id_type: Mapped[str | None] = mapped_column(String(30), nullable=True)
     department_id: Mapped[int | None] = mapped_column(ForeignKey("departments.id"), nullable=True)
     sync_source: Mapped[str] = mapped_column(String(30), default="feishu", nullable=False)
     last_synced_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)

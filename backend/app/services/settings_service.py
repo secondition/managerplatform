@@ -13,8 +13,8 @@ from app.models.user import User
 from app.schemas.admin import CompanySettingUpdate
 from app.utils.image_upload import delete_managed_upload, validate_raster_image
 
-DEFAULT_COMPANY_NAME = "Manager Platform"
-DEFAULT_FOOTER_TEXT = "MANAGER PLATFORM · Open Source Work Management"
+DEFAULT_COMPANY_NAME = "企业工作管理平台"
+DEFAULT_FOOTER_TEXT = "WORK MANAGEMENT DESK · 企业工作管理平台 MVP"
 UPLOAD_DIR = Path(__file__).resolve().parents[2] / "storage" / "uploads" / "logos"
 MAX_LOGO_BYTES = 2 * 1024 * 1024
 

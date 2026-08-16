@@ -5,7 +5,7 @@ import { getLoginConfig } from '@/api/auth';
 import { useAuthStore } from '@/stores/authStore';
 import type { FeishuLoginConfig } from '@/types/api';
 import { usePublicSettings } from '@/features/settings/hooks';
-import { CultureWordCloudTemplate } from './wordcloud/CultureWordCloudTemplate';
+import { WordCloudBackground } from './wordcloud/WordCloudBackground';
 
 // Single login path: redirect to Feishu's hosted authorize page (new v2 OAuth).
 // The backend builds the authorize URL (with a signed state); we send the whole
@@ -18,7 +18,7 @@ export default function LoginPage() {
   const [config, setConfig] = useState<FeishuLoginConfig | null>(null);
   const [error, setError] = useState<string | null>(null);
   const companySettings = usePublicSettings();
-  const companyName = companySettings.data?.company_name ?? 'Manager Platform';
+  const companyName = companySettings.data?.company_name ?? '企业工作管理平台';
   const logoUrl = companySettings.data?.logo_url;
 
   // Already signed in → skip the login page.
@@ -38,7 +38,7 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center lg:justify-end px-4 lg:pr-[8vw] xl:pr-[10vw] relative overflow-hidden">
-      <CultureWordCloudTemplate />
+      <WordCloudBackground />
       <div className="relative z-10 w-full max-w-sm bg-white rounded-2xl p-7 border border-zinc-100 shadow-[0_2px_12px_rgb(0,0,0,0.05)] animate-fade-in">
         <div className="flex flex-col items-center text-center gap-2 mb-6">
           {logoUrl ? (

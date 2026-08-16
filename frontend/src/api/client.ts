@@ -63,6 +63,16 @@ function errorMessage(detail: unknown, fallback: string): string {
   return fallback;
 }
 
+export function apiErrorCode(error: unknown): string | null {
+  if (!(error instanceof ApiError)) return null;
+  const payload = error.detail;
+  if (!payload || typeof payload !== 'object' || !('detail' in payload)) return null;
+  const detail = (payload as { detail: unknown }).detail;
+  if (!detail || typeof detail !== 'object' || !('code' in detail)) return null;
+  const code = (detail as { code: unknown }).code;
+  return typeof code === 'string' ? code : null;
+}
+
 async function rawRequest(path: string, opts: RequestOptions): Promise<Response> {
   const method = (opts.method ?? 'GET').toUpperCase();
   const headers: Record<string, string> = {};

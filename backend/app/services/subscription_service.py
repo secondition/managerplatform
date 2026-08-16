@@ -18,6 +18,7 @@ from app.schemas.subscription import (
 from app.schemas.user import UserBrief
 from app.services.daily_service import DailyService
 from app.services.okr_service import OkrService
+from app.services.notification_service import NotificationService
 from app.core.security import utcnow
 
 
@@ -204,6 +205,18 @@ class SubscriptionService:
             updated_by=self.user.id,
         )
         self.db.add(row)
+        self.db.flush()
+        NotificationService(self.db, self.user).notify(
+            recipient=target,
+            actor_id=self.user.id,
+            notification_type="subscription.started",
+            title="新增内容订阅",
+            body=f"{self.user.name} 开始订阅你的日报和 OKR。",
+            action_url=f"/people/{self.user.id}",
+            entity_type="subscription",
+            entity_id=row.id,
+            dedupe_key=f"subscription.started:{row.id}",
+        )
         self.db.commit()
         self.db.refresh(row)
         row.target_user = target
@@ -224,6 +237,19 @@ class SubscriptionService:
         row.okr_enabled = False
         row.deleted_at = utcnow()
         row.updated_by = self.user.id
+        target = self.db.get(User, target_user_id)
+        if target is not None:
+            NotificationService(self.db, self.user).notify(
+                recipient=target,
+                actor_id=self.user.id,
+                notification_type="subscription.ended",
+                title="内容订阅已取消",
+                body=f"{self.user.name} 已取消订阅你的日报和 OKR。",
+                action_url=f"/people/{self.user.id}",
+                entity_type="subscription",
+                entity_id=row.id,
+                dedupe_key=f"subscription.ended:{row.id}:{utcnow().date().isoformat()}",
+            )
         self.db.commit()
 
     def _get_active_target(self, target_user_id: int) -> User:

@@ -8,7 +8,8 @@ import Avatar from './Avatar';
 
 interface UserSelectPopoverProps {
   selectedIds: number[];
-  onChange: (ids: number[]) => void;
+  onChange: (ids: number[], users?: UserBrief[]) => void;
+  selectedUsers?: UserBrief[];
   multiple?: boolean;
   // Users to exclude from the list (e.g. current user for a dispatch picker).
   excludeIds?: number[];
@@ -26,6 +27,7 @@ interface UserSelectPopoverProps {
 export default function UserSelectPopover({
   selectedIds,
   onChange,
+  selectedUsers = [],
   multiple = true,
   excludeIds = [],
   label,
@@ -58,14 +60,26 @@ export default function UserSelectPopover({
         .filter((g) => g.member_ids.length > 0)
     : [];
 
+  const resolveUsers = (ids: number[]): UserBrief[] => {
+    const knownUsers = new Map<number, UserBrief>();
+    selectedUsers.forEach((user) => knownUsers.set(user.id, user));
+    (users ?? []).forEach((user) => knownUsers.set(user.id, user));
+    return ids.flatMap((id) => {
+      const user = knownUsers.get(id);
+      return user ? [user] : [];
+    });
+  };
+
   const toggle = (user: UserBrief) => {
     if (multiple) {
       const set = new Set(selectedIds);
       if (set.has(user.id)) set.delete(user.id);
       else set.add(user.id);
-      onChange([...set]);
+      const ids = [...set];
+      onChange(ids, resolveUsers(ids));
     } else {
-      onChange(selectedIds.includes(user.id) ? [] : [user.id]);
+      const ids = selectedIds.includes(user.id) ? [] : [user.id];
+      onChange(ids, resolveUsers(ids));
       setOpen(false);
     }
   };
@@ -76,7 +90,8 @@ export default function UserSelectPopover({
   const pickGroup = (memberIds: number[]) => {
     const set = new Set(selectedIds);
     memberIds.forEach((id) => set.add(id));
-    onChange([...set]);
+    const ids = [...set];
+    onChange(ids, resolveUsers(ids));
   };
 
   return (

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'motion/react';
 import type { WordItem } from './types';
-import { getTemplateWords } from './templateWords';
+import { getProcessedWords } from './words';
 
 function getWordStyles(w: WordItem): React.CSSProperties {
   const base: React.CSSProperties = {
@@ -25,7 +25,7 @@ function getWordStyles(w: WordItem): React.CSSProperties {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      paddingLeft: '0.275cqw',
+      paddingLeft: '0.275cqw', // Compensates for the letter-spacing on the last character to ensure perfect centering
     };
   }
 
@@ -95,15 +95,15 @@ function getWordStyles(w: WordItem): React.CSSProperties {
 }
 
 /**
- * Login screen culture word cloud template.
+ * 心选电商文化投影云图 — background variant.
  * Rendered as a fixed, transparent, non-interactive layer behind the login card,
  * layered on top of the body's radial-gradient glow. Words fly in once on mount.
  */
-export const CultureWordCloudTemplate: React.FC = () => {
+export const WordCloudBackground: React.FC = () => {
   const [words, setWords] = useState<WordItem[]>([]);
 
   useEffect(() => {
-    setWords(getTemplateWords('closest'));
+    setWords(getProcessedWords('closest'));
   }, []);
 
   return (
@@ -134,7 +134,7 @@ export const CultureWordCloudTemplate: React.FC = () => {
                 transition={{
                   duration: w.isMain ? 0.45 : 1.15,
                   delay: delayTime,
-                  ease: [0.16, 1, 0.3, 1],
+                  ease: [0.16, 1, 0.3, 1], // easeOutExpo
                 }}
                 style={customWordStyles}
               >

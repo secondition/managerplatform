@@ -7,7 +7,7 @@ import re
 from datetime import date, timedelta
 from decimal import Decimal
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, selectinload
 
 from app.models.ai import (
@@ -23,7 +23,7 @@ from app.models.ai import (
 )
 from app.models.daily import DailyReport, DailyTask, ProblemSolution
 from app.models.okr import MonthlyReportSection, OkrObjective
-from app.models.traffic import TrafficMetric, TrafficMetricValue
+from app.models.traffic import TrafficMetric, TrafficMetricAssignment, TrafficMetricValue
 from app.models.user import User
 from app.core.security import utcnow
 from app.schemas.ai_provider import validate_provider_output
@@ -36,6 +36,7 @@ from app.services.ai.defaults import (
 )
 from app.services.ai.factory import build_provider
 from app.services.ai.provider import AiProviderError, AiProviderNotConfigured
+from app.services.notification_service import NotificationService
 from app.utils.dates import last_completed_week_start
 from app.utils.dates import month_bounds, working_days_in
 
@@ -166,6 +167,27 @@ class AiService:
     def __init__(self, db: Session, user: User) -> None:
         self.db = db
         self.user = user
+
+    def _notify_result(
+        self,
+        user_id: int,
+        notification_type: str,
+        title: str,
+        body: str,
+        action_url: str,
+        dedupe_key: str,
+    ) -> None:
+        recipient = self.db.get(User, user_id)
+        if recipient is None:
+            return
+        NotificationService(self.db).notify(
+            recipient=recipient,
+            notification_type=notification_type,
+            title=title,
+            body=body,
+            action_url=action_url,
+            dedupe_key=dedupe_key,
+        )
 
     # ---- feature flags / prompts -------------------------------------
 
@@ -540,6 +562,14 @@ class AiService:
         row.generated_at = utcnow()
 
         self._apply_memory_update(uid, parsed.get("memory_update"), row.manager_hint)
+        self._notify_result(
+            uid,
+            "daily.score_ready",
+            "日报评分已完成",
+            f"{report_date.isoformat()} 的日报 AI 评分已经生成。",
+            f"/daily?date={report_date.isoformat()}",
+            f"daily.score_ready:{uid}:{report_date.isoformat()}",
+        )
         self.db.commit()
         self.db.refresh(row)
         return row
@@ -636,6 +666,14 @@ class AiService:
         row.manager_hint = parsed.get("manager_hint")
         row.ai_task_id = task.id
         row.generated_at = utcnow()
+        self._notify_result(
+            uid,
+            "weekly.score_ready",
+            "周评分已完成",
+            f"{week_start.isoformat()} 至 {week_end.isoformat()} 的周评分已经生成。",
+            "/daily",
+            f"weekly.score_ready:{uid}:{week_start.isoformat()}",
+        )
         self.db.commit()
         self.db.refresh(row)
         return row
@@ -705,7 +743,14 @@ class AiService:
         traffic_rows = self.db.execute(
             select(TrafficMetricValue, TrafficMetric, User)
             .join(TrafficMetric, TrafficMetric.id == TrafficMetricValue.metric_id)
-            .join(User, User.id == TrafficMetric.owner_id)
+            .join(
+                TrafficMetricAssignment,
+                TrafficMetricAssignment.id == TrafficMetricValue.assignment_id,
+            )
+            .join(
+                User,
+                User.id == TrafficMetricAssignment.assignee_id,
+            )
             .where(
                 TrafficMetricValue.week_end >= cutoff,
                 TrafficMetricValue.week_start <= suggestion_date,
@@ -715,12 +760,12 @@ class AiService:
                 User.deleted_at.is_(None),
             )
         ).all()
-        for value, metric, owner in traffic_rows:
+        for value, metric, assignee in traffic_rows:
             note = (value.note or "").strip()
             if not note:
                 continue
-            text = f"{owner.name} {value.week_end} 红绿灯「{metric.name}」备注：{note}"
-            priority = 2 if user.name in text else (1 if owner.id == user.id else 0)
+            text = f"{assignee.name} {value.week_end} 红绿灯「{metric.name}」备注：{note}"
+            priority = 2 if user.name in text else (1 if assignee.id == user.id else 0)
             candidates.append((priority, value.week_end, text))
 
         month = suggestion_date.strftime("%Y-%m")
@@ -879,6 +924,14 @@ class AiService:
             )
             self.db.add(row)
             items.append(row)
+        self._notify_result(
+            uid,
+            "daily.suggestion_ready",
+            "日报建议已生成",
+            f"{suggestion_date.isoformat()} 的工作建议已经生成。",
+            f"/daily?date={suggestion_date.isoformat()}",
+            f"daily.suggestion_ready:{uid}:{suggestion_date.isoformat()}",
+        )
         self.db.commit()
         for row in items:
             self.db.refresh(row)
@@ -1027,6 +1080,14 @@ class AiService:
         row.impact_on_daily_scoring = parsed.get("impact_on_daily_scoring")
         row.ai_task_id = task.id
         row.generated_at = utcnow()
+        self._notify_result(
+            uid,
+            "okr.review_ready",
+            "OKR 复盘已完成",
+            f"{month} 的 OKR AI 复盘已经生成。",
+            f"/okr?month={month}",
+            f"okr.review_ready:{uid}:{month}",
+        )
         self.db.commit()
         self.db.refresh(row)
         return row
@@ -1178,6 +1239,14 @@ class AiService:
         row.suggestions_json = list(parsed.get("suggestions") or [])
         row.ai_task_id = task.id
         row.generated_at = utcnow()
+        self._notify_result(
+            uid,
+            "monthly_report.score_ready",
+            "月报评分已完成",
+            f"{month} 的月报 AI 评分已经生成。",
+            f"/okr?month={month}",
+            f"monthly_report.score_ready:{uid}:{month}",
+        )
         self.db.commit()
         self.db.refresh(row)
         return row

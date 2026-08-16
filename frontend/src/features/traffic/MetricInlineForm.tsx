@@ -174,7 +174,7 @@ function MemberBox({
         <span className="text-[#8a9ab1]">已选 {selectedCount}</span>
       </div>
       <UserSelectPopover
-        label="搜索同事姓名/部门..."
+        label="选择人员 / 人员组"
         multiple
         includeGroups
         selectedIds={selectedIds}

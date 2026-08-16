@@ -10,7 +10,7 @@ const TOGGLES: { key: keyof AiFeatureFlagsOut; label: string; hint: string }[] =
   {
     key: 'scheduler_enabled',
     label: '定时任务',
-    hint: '每天 17:00 / 23:50 自动评分，月末自动 OKR 点评',
+    hint: '每天 17:30 / 23:30 自动评分，月末自动 OKR 点评',
   },
 ];
 

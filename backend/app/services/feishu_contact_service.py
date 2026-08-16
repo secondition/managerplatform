@@ -33,6 +33,8 @@ class FeishuContactUser:
     email: str | None
     avatar_url: str | None
     department_ids: list[str]
+    message_receive_id: str
+    message_receive_id_type: str
 
 
 @dataclass
@@ -143,7 +145,15 @@ class FeishuContactService:
         union_id = self._string_field(item, "union_id")
         if not union_id:
             return None
-        open_id = self._string_field(item, "open_id") or self._string_field(item, "user_id") or union_id
+        actual_open_id = self._string_field(item, "open_id")
+        actual_user_id = self._string_field(item, "user_id")
+        open_id = actual_open_id or actual_user_id or union_id
+        if actual_open_id:
+            message_receive_id, message_receive_id_type = actual_open_id, "open_id"
+        elif actual_user_id:
+            message_receive_id, message_receive_id_type = actual_user_id, "user_id"
+        else:
+            message_receive_id, message_receive_id_type = union_id, "union_id"
         name = self._name_field(item.get("name")) or self._string_field(item, "name", "en_name") or "未命名员工"
         avatar = item.get("avatar")
         avatar_url = self._string_field(item, "avatar_url")
@@ -161,11 +171,13 @@ class FeishuContactService:
         return FeishuContactUser(
             union_id=union_id,
             open_id=open_id,
-            user_id=self._string_field(item, "user_id"),
+            user_id=actual_user_id,
             name=name,
             email=self._string_field(item, "email"),
             avatar_url=avatar_url,
             department_ids=department_ids,
+            message_receive_id=message_receive_id,
+            message_receive_id_type=message_receive_id_type,
         )
 
     async def _paged_get(self, path: str, params: dict[str, Any]) -> list[dict[str, Any]]:
@@ -324,6 +336,8 @@ class FeishuContactService:
                     feishu_union_id=item.union_id,
                     feishu_open_id=item.open_id,
                     feishu_user_id=item.user_id,
+                    feishu_message_receive_id=item.message_receive_id,
+                    feishu_message_receive_id_type=item.message_receive_id_type,
                     department_id=dept.id if dept else None,
                     status="active",
                     sync_source="feishu",
@@ -342,6 +356,8 @@ class FeishuContactService:
                     user.avatar_url = item.avatar_url
                 user.feishu_open_id = item.open_id
                 user.feishu_user_id = item.user_id
+                user.feishu_message_receive_id = item.message_receive_id
+                user.feishu_message_receive_id_type = item.message_receive_id_type
                 user.department_id = dept.id if dept else None
                 user.sync_source = "feishu"
                 user.last_synced_at = now

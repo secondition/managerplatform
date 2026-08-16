@@ -11,7 +11,9 @@ export type Permission =
   | 'admin:employee'
   | 'admin:department'
   | 'admin:settings'
-  | 'admin:ai';
+  | 'admin:ai'
+  | 'admin:agent'
+  | 'admin:notification';
 
 export interface UserOut {
   id: number;
@@ -211,11 +213,12 @@ export interface WeekColumnOut {
   is_empty: boolean;
 }
 
-export type MetricRole = 'owner' | 'editor' | 'viewer';
+export type MetricRole = 'owner' | 'assignee' | 'viewer';
 
 export interface TrafficMetricValueOut {
   id: number;
   metric_id: number;
+  assignment_id: number;
   week_start: string;
   week_end: string;
   value: string | number | null;
@@ -227,12 +230,22 @@ export interface TrafficMetricMemberOut {
   user_id: number;
   name: string;
   avatar_url: string | null;
-  role: 'editor' | 'viewer';
+  role: 'viewer';
+}
+
+export interface TrafficMetricAssigneeOut {
+  assignment_id: number;
+  user_id: number;
+  name: string;
+  avatar_url: string | null;
+  effective_from: string;
 }
 
 export interface TrafficMetricOut {
   id: number;
+  assignment_id: number | null;
   owner_id: number;
+  assignee: TrafficMetricAssigneeOut | null;
   name: string;
   unit: string | null;
   direction: MetricDirection;
@@ -243,6 +256,7 @@ export interface TrafficMetricOut {
   recent_avg: string | number | null;
   status: ValueStatus;
   members: TrafficMetricMemberOut[];
+  assignees: TrafficMetricAssigneeOut[];
   my_role: MetricRole;
   can_edit_values: boolean;
   can_edit_meta: boolean;

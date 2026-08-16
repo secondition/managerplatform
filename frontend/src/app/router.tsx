@@ -5,6 +5,7 @@ import AppShell from '@/components/layout/AppShell';
 import Spinner from '@/components/ui/Spinner';
 import LoginPage from '@/features/auth/LoginPage';
 import CallbackPage from '@/features/auth/CallbackPage';
+import ChatOAuthCallbackPage from '@/features/chat/ChatOAuthCallbackPage';
 import ForbiddenPage from '@/components/layout/ForbiddenPage';
 
 const DailyPage = lazy(() => import('@/features/daily/DailyPage'));
@@ -15,7 +16,7 @@ const DailySubscriptionPage = lazy(() => import('@/features/subscription/DailySu
 const OkrSubscriptionPage = lazy(() => import('@/features/subscription/OkrSubscriptionPage'));
 const PeoplePage = lazy(() => import('@/features/people/PeoplePage'));
 const GroupsPage = lazy(() => import('@/features/groups/GroupsPage'));
-const ChatPage = lazy(() => import('@/features/workspace/WorkspacePages').then((module) => ({ default: module.ChatPage })));
+const ChatPage = lazy(() => import('@/features/chat/ChatPage'));
 const InspirationsPage = lazy(() => import('@/features/workspace/WorkspacePages').then((module) => ({ default: module.InspirationsPage })));
 const DocumentsPage = lazy(() => import('@/features/workspace/WorkspacePages').then((module) => ({ default: module.DocumentsPage })));
 const DocumentEditorPage = lazy(() => import('@/features/workspace/WorkspacePages').then((module) => ({ default: module.DocumentEditorPage })));
@@ -38,7 +39,9 @@ function HomeRedirect() {
     ['admin:employee', '/admin'],
     ['admin:department', '/admin'],
     ['admin:ai', '/admin'],
+    ['admin:agent', '/admin'],
     ['admin:settings', '/admin'],
+    ['admin:notification', '/admin'],
   ];
   const destination = destinations.find(([permission]) => hasPermission(permission))?.[1] ?? '/people/me';
   return <Navigate to={destination} replace />;
@@ -46,14 +49,17 @@ function HomeRedirect() {
 
 function AdminHomeRedirect() {
   const hasPermission = useAuthStore((state) => state.hasPermission);
+  const user = useAuthStore((state) => state.user);
   const location = useLocation();
   const legacyTab = new URLSearchParams(location.search).get('tab');
   const legacyDestinations: Record<string, [string, string]> = {
     employees: ['admin:employee', '/admin/employees'],
-    knowledge: ['admin:employee', '/admin/permissions'],
     departments: ['admin:department', '/admin/departments'],
     ai: ['admin:ai', '/admin/scoring-settings'],
   };
+  if (legacyTab === 'knowledge' && user?.role === 'owner') {
+    return <Navigate to="/admin/permissions" replace />;
+  }
   const requested = legacyTab ? legacyDestinations[legacyTab] : undefined;
   if (requested && hasPermission(requested[0])) return <Navigate to={requested[1]} replace />;
 
@@ -61,7 +67,9 @@ function AdminHomeRedirect() {
     ['admin:employee', '/admin/employees'],
     ['admin:department', '/admin/departments'],
     ['admin:ai', '/admin/scoring-settings'],
+    ['admin:agent', '/admin/agent-settings'],
     ['admin:settings', '/admin/company-settings'],
+    ['admin:notification', '/admin/notification-settings'],
   ];
   const destination = destinations.find(([permission]) => hasPermission(permission))?.[1] ?? '/people/me';
   return <Navigate to={destination} replace />;
@@ -94,9 +102,16 @@ function RequirePermission({ permissions }: { permissions: string[] }) {
   return <Outlet />;
 }
 
+function RequireOwner() {
+  const user = useAuthStore((state) => state.user);
+  if (user?.role !== 'owner') return <ForbiddenPage />;
+  return <Outlet />;
+}
+
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   { path: '/login/callback', element: <CallbackPage /> },
+  { path: '/chat/oauth/callback', element: <ChatOAuthCallbackPage /> },
   {
     element: <RequireAuth />,
     children: [
@@ -142,6 +157,11 @@ export const router = createBrowserRouter([
         children: [
           { path: 'admin/employees', element: <LazyPage><AdminPage section="employees" /></LazyPage> },
           { path: 'admin/sync-history', element: <LazyPage><AdminPage section="sync-history" /></LazyPage> },
+        ],
+      },
+      {
+        element: <RequireOwner />,
+        children: [
           { path: 'admin/permissions', element: <LazyPage><AdminPage section="permissions" /></LazyPage> },
         ],
       },
@@ -155,14 +175,25 @@ export const router = createBrowserRouter([
         element: <RequirePermission permissions={['admin:ai']} />,
         children: [
           { path: 'admin/scoring-settings', element: <LazyPage><AdminPage section="scoring" /></LazyPage> },
-          { path: 'admin/agent-settings', element: <LazyPage><AdminPage section="agents" /></LazyPage> },
           { path: 'admin/ai-settings', element: <Navigate to="/admin/scoring-settings" replace /> },
+        ],
+      },
+      {
+        element: <RequirePermission permissions={['admin:agent']} />,
+        children: [
+          { path: 'admin/agent-settings', element: <LazyPage><AdminPage section="agents" /></LazyPage> },
         ],
       },
       {
         element: <RequirePermission permissions={['admin:settings']} />,
         children: [
           { path: 'admin/company-settings', element: <LazyPage><AdminPage section="settings" /></LazyPage> },
+        ],
+      },
+      {
+        element: <RequirePermission permissions={['admin:notification']} />,
+        children: [
+          { path: 'admin/notification-settings', element: <LazyPage><AdminPage section="notifications" /></LazyPage> },
         ],
       },
       { path: 'overview', element: <Navigate to="/admin" replace /> },

@@ -9,12 +9,10 @@ from app.db.types import BigInt
 
 
 class TrafficMetric(Base, TimestampMixin, AuditMixin):
-    """A long-lived weekly traffic-light metric.
+    """A shared definition for a long-lived weekly traffic-light metric.
 
-    No longer bound to a month: the metric persists indefinitely and is filled
-    one value per ISO week. A single ``weekly_target`` defines the per-week goal;
-    each week is green when the week's value meets the goal, red otherwise, grey
-    when not yet filled.
+    Every assignee receives an independent assignment with its own weekly values.
+    The name, direction and targets stay centralized on this definition.
     """
 
     __tablename__ = "traffic_metrics"
@@ -38,6 +36,31 @@ class TrafficMetric(Base, TimestampMixin, AuditMixin):
         back_populates="metric",
         cascade="all, delete-orphan",
     )
+    assignments: Mapped[list["TrafficMetricAssignment"]] = relationship(
+        back_populates="metric",
+        cascade="all, delete-orphan",
+    )
+
+
+class TrafficMetricAssignment(Base, TimestampMixin, AuditMixin):
+    __tablename__ = "traffic_metric_assignments"
+    __table_args__ = (
+        UniqueConstraint("metric_id", "assignee_id", name="uq_metric_assignee"),
+        Index("ix_traffic_metric_assignments_assignee", "assignee_id"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInt, primary_key=True)
+    metric_id: Mapped[int] = mapped_column(ForeignKey("traffic_metrics.id"), nullable=False)
+    assignee_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    assigned_by_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    effective_from: Mapped[date] = mapped_column(Date, nullable=False)
+    metric: Mapped[TrafficMetric] = relationship(back_populates="assignments")
+    assignee = relationship("User", foreign_keys=[assignee_id])
+    assigned_by = relationship("User", foreign_keys=[assigned_by_id])
+    values: Mapped[list["TrafficMetricValue"]] = relationship(
+        back_populates="assignment",
+        cascade="all, delete-orphan",
+    )
 
 
 class TrafficMetricMember(Base, TimestampMixin, AuditMixin):
@@ -54,18 +77,19 @@ class TrafficMetricMember(Base, TimestampMixin, AuditMixin):
 
 
 class TrafficMetricValue(Base, TimestampMixin, AuditMixin):
-    """One filled value for a metric in a given ISO week (Monday-start).
-
-    Rows exist only for weeks the user has filled; unfilled weeks render as the
-    grey "not entered" state. ``status`` is computed server-side from the value
-    vs. the metric's weekly target: on_target / missed.
-    """
+    """One filled value for an assignment in a given ISO week (Monday-start)."""
 
     __tablename__ = "traffic_metric_values"
-    __table_args__ = (UniqueConstraint("metric_id", "week_start", name="uq_metric_week"),)
+    __table_args__ = (
+        UniqueConstraint("assignment_id", "week_start", name="uq_metric_assignment_week"),
+        Index("ix_traffic_metric_values_metric_week", "metric_id", "week_start"),
+    )
 
     id: Mapped[int] = mapped_column(BigInt, primary_key=True)
     metric_id: Mapped[int] = mapped_column(ForeignKey("traffic_metrics.id"), nullable=False)
+    assignment_id: Mapped[int] = mapped_column(
+        ForeignKey("traffic_metric_assignments.id"), nullable=False
+    )
     week_start: Mapped[date] = mapped_column(Date, nullable=False)
     week_end: Mapped[date] = mapped_column(Date, nullable=False)
     value: Mapped[Decimal | None] = mapped_column(Numeric(18, 4), nullable=True)
@@ -73,3 +97,4 @@ class TrafficMetricValue(Base, TimestampMixin, AuditMixin):
     note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     metric: Mapped[TrafficMetric] = relationship(back_populates="values")
+    assignment: Mapped[TrafficMetricAssignment] = relationship(back_populates="values")

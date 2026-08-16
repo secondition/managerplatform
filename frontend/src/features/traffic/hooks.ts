@@ -60,14 +60,14 @@ export function useUpsertValue() {
   const invalidate = useMetricsInvalidate();
   return useMutation({
     mutationFn: ({
-      metricId,
+      assignmentId,
       weekStart,
       input,
     }: {
-      metricId: number;
+      assignmentId: number;
       weekStart: string;
       input: UpsertValueInput;
-    }) => trafficApi.upsertMetricValue(metricId, weekStart, input),
+    }) => trafficApi.upsertMetricValue(assignmentId, weekStart, input),
     onSuccess: invalidate,
   });
 }

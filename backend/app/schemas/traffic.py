@@ -19,6 +19,7 @@ class WeekColumnOut(BaseModel):
 class TrafficMetricValueOut(ORMModel):
     id: int
     metric_id: int
+    assignment_id: int
     week_start: date
     week_end: date
     value: Decimal | None
@@ -33,9 +34,19 @@ class TrafficMetricMemberOut(BaseModel):
     role: str
 
 
+class TrafficMetricAssigneeOut(BaseModel):
+    assignment_id: int
+    user_id: int
+    name: str
+    avatar_url: str | None
+    effective_from: date
+
+
 class TrafficMetricOut(ORMModel):
     id: int
+    assignment_id: int | None = None
     owner_id: int
+    assignee: TrafficMetricAssigneeOut | None = None
     name: str
     unit: str | None
     direction: str
@@ -46,6 +57,7 @@ class TrafficMetricOut(ORMModel):
     recent_avg: Decimal | None  # mean of filled values in the window
     status: str  # rollup for the current window: on_target | missed | empty
     members: list[TrafficMetricMemberOut] = []
+    assignees: list[TrafficMetricAssigneeOut] = []
     my_role: str = "owner"
     can_edit_values: bool = True
     can_edit_meta: bool = True
@@ -58,6 +70,15 @@ def _validate_direction(value: str | None) -> str | None:
     if value is not None and value not in _DIRECTIONS:
         raise ValueError("direction must be increase/decrease")
     return value
+
+
+def _validate_name(value: str | None) -> str | None:
+    if value is None:
+        return None
+    normalized = value.strip()
+    if not normalized:
+        raise ValueError("name cannot be blank")
+    return normalized
 
 
 class TrafficMetricCreate(BaseModel):
@@ -76,6 +97,11 @@ class TrafficMetricCreate(BaseModel):
     def validate_direction(cls, value: str) -> str:
         return _validate_direction(value)
 
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        return _validate_name(value)
+
 
 class TrafficMetricUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -93,6 +119,11 @@ class TrafficMetricUpdate(BaseModel):
     @classmethod
     def validate_direction(cls, value: str | None) -> str | None:
         return _validate_direction(value)
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str | None) -> str | None:
+        return _validate_name(value)
 
 
 class TrafficMetricValueUpdate(BaseModel):

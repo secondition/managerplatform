@@ -7,7 +7,7 @@ export interface WordItem {
   x: number; // Left percentage position on canvas (0 to 100)
   y: number; // Top percentage position on canvas (0 to 100)
   isVertical?: boolean;
-  isMain?: boolean; // Center title item
+  isMain?: boolean; // Represents "心选电商"
   direction: 'top' | 'bottom' | 'left' | 'right';
   distance?: number; // Distance from center
   sequence?: number; // Sorted launch sequence number

@@ -20,7 +20,7 @@ router = APIRouter(prefix="/traffic", tags=["traffic"])
 
 @router.get("/weeks", response_model=list[WeekColumnOut])
 def get_weeks(
-    end: date | None = Query(default=None, description="Monday of the newest week; defaults to last completed week"),
+    end: date | None = Query(default=None, description="Monday of the newest week; defaults to current week"),
     count: int = Query(default=DEFAULT_WEEK_COUNT, ge=1, le=52),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
@@ -48,22 +48,26 @@ def list_metrics(
     return TrafficService(db, user).list_metrics(end, count)
 
 
-@router.post("/metrics", response_model=TrafficMetricOut, dependencies=[Depends(csrf_protect)])
+@router.post("/metrics", response_model=list[TrafficMetricOut], dependencies=[Depends(csrf_protect)])
 def create_metric(
     payload: TrafficMetricCreate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
-) -> dict:
+) -> list[dict]:
     return TrafficService(db, user).create_metric(payload)
 
 
-@router.patch("/metrics/{metric_id}", response_model=TrafficMetricOut, dependencies=[Depends(csrf_protect)])
+@router.patch(
+    "/metrics/{metric_id}",
+    response_model=list[TrafficMetricOut],
+    dependencies=[Depends(csrf_protect)],
+)
 def update_metric(
     metric_id: int,
     payload: TrafficMetricUpdate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
-) -> dict:
+) -> list[dict]:
     return TrafficService(db, user).update_metric(metric_id, payload)
 
 
@@ -78,15 +82,15 @@ def delete_metric(
 
 
 @router.patch(
-    "/metrics/{metric_id}/values/{week_start}",
+    "/metric-assignments/{assignment_id}/values/{week_start}",
     response_model=TrafficMetricOut,
     dependencies=[Depends(csrf_protect)],
 )
 def upsert_metric_value(
-    metric_id: int,
+    assignment_id: int,
     week_start: date,
     payload: TrafficMetricValueUpdate,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ) -> dict:
-    return TrafficService(db, user).upsert_value(metric_id, week_start, payload)
+    return TrafficService(db, user).upsert_value(assignment_id, week_start, payload)

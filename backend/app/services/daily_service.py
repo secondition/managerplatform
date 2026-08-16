@@ -21,6 +21,7 @@ from app.schemas.daily import (
     ProblemSolutionUpdate,
 )
 from app.schemas.user import UserBrief
+from app.services.notification_service import NotificationService
 from app.utils.dates import week_dates
 from app.utils.html_sanitize import extract_text, sanitize_html
 from app.core.security import utcnow
@@ -378,8 +379,14 @@ class DailyService:
             )
             self.db.add(task)
             self.db.flush()
-            self._set_collaborators(task, payload.collaborator_ids)
+            new_collaborator_ids = self._set_collaborators(task, payload.collaborator_ids)
             self.db.flush()
+            self._notify_task_participants(
+                task,
+                payload.date,
+                assigned=dispatched,
+                collaborator_ids=new_collaborator_ids,
+            )
             _create_next_repeat_occurrence(self.db, task, payload.date)
             if first_task is None:
                 first_task = task
@@ -415,7 +422,13 @@ class DailyService:
             task.sort_order = payload.sort_order
         if payload.collaborator_ids is not None:
             self._validate_users(payload.collaborator_ids)
-            self._set_collaborators(task, payload.collaborator_ids)
+            added_collaborator_ids = self._set_collaborators(task, payload.collaborator_ids)
+            self._notify_task_participants(
+                task,
+                report_date,
+                assigned=False,
+                collaborator_ids=added_collaborator_ids,
+            )
             for future in future_tasks:
                 if future.deleted_at is None:
                     self._set_collaborators(future, payload.collaborator_ids)
@@ -484,8 +497,14 @@ class DailyService:
             )
             self.db.add(dispatched)
             self.db.flush()
-            self._set_collaborators(dispatched, collaborator_ids)
+            added_collaborator_ids = self._set_collaborators(dispatched, collaborator_ids)
             self.db.flush()
+            self._notify_task_participants(
+                dispatched,
+                report_date,
+                assigned=True,
+                collaborator_ids=added_collaborator_ids,
+            )
             _create_next_repeat_occurrence(self.db, dispatched, report_date)
             if first_task is None:
                 first_task = dispatched
@@ -641,7 +660,7 @@ class DailyService:
         if missing:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unknown user(s)")
 
-    def _set_collaborators(self, task: DailyTask, collaborator_ids: list[int]) -> None:
+    def _set_collaborators(self, task: DailyTask, collaborator_ids: list[int]) -> set[int]:
         wanted = {uid for uid in collaborator_ids if uid != task.user_id}
         existing = self.db.scalars(
             select(DailyTaskCollaborator).where(
@@ -649,6 +668,7 @@ class DailyService:
             )
         ).all()
         by_user = {row.user_id: row for row in existing}
+        active = {row.user_id for row in existing if row.deleted_at is None}
         for uid, row in by_user.items():
             if uid not in wanted:
                 row.deleted_at = utcnow()
@@ -667,6 +687,45 @@ class DailyService:
                     updated_by=self.user.id,
                 )
             )
+        return wanted - active
+
+    def _notify_task_participants(
+        self,
+        task: DailyTask,
+        report_date: date,
+        *,
+        assigned: bool,
+        collaborator_ids: set[int],
+    ) -> None:
+        service = NotificationService(self.db, self.user)
+        if assigned and task.user_id != self.user.id:
+            recipient = self.db.get(User, task.user_id)
+            if recipient is not None:
+                service.notify(
+                    recipient=recipient,
+                    actor_id=self.user.id,
+                    notification_type="daily.assigned",
+                    title="收到新的日报任务",
+                    body=f"{self.user.name} 向你派发了任务：{task.content}",
+                    action_url=f"/daily?date={report_date.isoformat()}",
+                    entity_type="daily_task",
+                    entity_id=task.id,
+                    dedupe_key=f"daily.assigned:{task.id}:{task.user_id}",
+                )
+        for collaborator_id in collaborator_ids - {task.user_id, self.user.id}:
+            recipient = self.db.get(User, collaborator_id)
+            if recipient is not None:
+                service.notify(
+                    recipient=recipient,
+                    actor_id=self.user.id,
+                    notification_type="daily.collaborator_added",
+                    title="你已成为日报任务协作者",
+                    body=f"你已成为“{task.content}”的协作者。",
+                    action_url=f"/daily?date={report_date.isoformat()}",
+                    entity_type="daily_task",
+                    entity_id=task.id,
+                    dedupe_key=f"daily.collaborator_added:{task.id}:{collaborator_id}",
+                )
 
     def _ensure_dispatch_subscriptions(self, target_user_ids: list[int]) -> None:
         target_ids = [uid for uid in dict.fromkeys(target_user_ids) if uid != self.user.id]

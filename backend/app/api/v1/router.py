@@ -2,12 +2,16 @@ from fastapi import APIRouter, Depends
 
 from app.api.v1 import (
     admin,
+    admin_agents,
     admin_ai,
+    admin_notifications,
     ai,
     auth,
+    chat,
     daily,
     groups,
     okr,
+    notifications,
     people,
     settings,
     subscriptions,
@@ -19,13 +23,17 @@ from app.core.permissions import FEATURE_DAILY, FEATURE_OKR, FEATURE_TRAFFIC
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(auth.router)
+api_router.include_router(chat.router)
+api_router.include_router(notifications.router)
 # Feature gates apply by permission row for every user, including owner.
 api_router.include_router(daily.router, dependencies=[Depends(require_permission(FEATURE_DAILY))])
 api_router.include_router(traffic.router, dependencies=[Depends(require_permission(FEATURE_TRAFFIC))])
 api_router.include_router(okr.router, dependencies=[Depends(require_permission(FEATURE_OKR))])
 api_router.include_router(users.router)
 api_router.include_router(admin.router)
+api_router.include_router(admin_agents.router)
 api_router.include_router(admin_ai.router)
+api_router.include_router(admin_notifications.router)
 api_router.include_router(ai.router)
 api_router.include_router(groups.router)
 api_router.include_router(subscriptions.router)

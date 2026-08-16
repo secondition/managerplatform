@@ -14,6 +14,8 @@ ADMIN_EMPLOYEE = "admin:employee"
 ADMIN_DEPARTMENT = "admin:department"
 ADMIN_SETTINGS = "admin:settings"
 ADMIN_AI = "admin:ai"
+ADMIN_NOTIFICATION = "admin:notification"
+ADMIN_AGENT = "admin:agent"
 
 FEATURE_PERMISSIONS = [
     FEATURE_DAILY,
@@ -27,6 +29,8 @@ ADVANCED_PERMISSIONS = [
     ADMIN_DEPARTMENT,
     ADMIN_SETTINGS,
     ADMIN_AI,
+    ADMIN_NOTIFICATION,
+    ADMIN_AGENT,
 ]
 
 # Everything assignable per user in the admin backend.

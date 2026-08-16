@@ -1,14 +1,19 @@
-import { Bot } from 'lucide-react';
 import EmployeeList from './EmployeeList';
 import AdvancedPermissions from './AdvancedPermissions';
 import OrgManage from './OrgManage';
 import AiConfigPage from './ai/AiConfigPage';
 import CompanySettingsPage from '@/features/settings/CompanySettingsPage';
 import ContactSyncHistory from './ContactSyncHistory';
+import NotificationSettings from './NotificationSettings';
+import AgentSettings from './AgentSettings';
 
-export type AdminSection = 'employees' | 'sync-history' | 'permissions' | 'departments' | 'scoring' | 'agents' | 'settings';
+export type AdminSection = 'employees' | 'sync-history' | 'permissions' | 'departments' | 'scoring' | 'agents' | 'settings' | 'notifications';
 
 const SECTION_META: Record<AdminSection, { title: string; description: string }> = {
+  notifications: {
+    title: '通知设置',
+    description: '按通知场景配置站内与飞书渠道，并查看飞书消息投递状态。',
+  },
   employees: {
     title: '人员管理',
     description: '同步飞书通讯录，管理员工状态以及可使用的业务模块。',
@@ -19,7 +24,7 @@ const SECTION_META: Record<AdminSection, { title: string; description: string }>
   },
   permissions: {
     title: '权限管理',
-    description: '配置员工进入各项后台管理能力的权限。',
+    description: '配置员工进入各项后台管理能力的权限，仅 Owner 可操作。',
   },
   departments: {
     title: '部门管理',
@@ -31,7 +36,7 @@ const SECTION_META: Record<AdminSection, { title: string; description: string }>
   },
   agents: {
     title: '智能体设置',
-    description: '自定义智能体的后台配置入口。',
+    description: '按员工或人员组配置智能体授权，并检查目标飞书群成员覆盖范围。',
   },
   settings: {
     title: '企业设置',
@@ -54,22 +59,9 @@ export default function AdminPage({ section }: { section: AdminSection }) {
       {section === 'permissions' && <AdvancedPermissions />}
       {section === 'departments' && <OrgManage show="department" />}
       {section === 'scoring' && <AiConfigPage />}
-      {section === 'agents' && <AgentSettingsPlaceholder />}
+      {section === 'agents' && <AgentSettings />}
       {section === 'settings' && <CompanySettingsPage />}
+      {section === 'notifications' && <NotificationSettings />}
     </div>
-  );
-}
-
-function AgentSettingsPlaceholder() {
-  return (
-    <section className="workspace-card flex min-h-[300px] flex-col items-center justify-center px-6 text-center">
-      <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-slate-100 text-slate-400">
-        <Bot size={22} />
-      </span>
-      <strong className="mt-4 text-sm font-semibold text-slate-700">智能体设置</strong>
-      <span className="mt-2 rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-[11px] text-slate-500">
-        功能预留，暂未开放
-      </span>
-    </section>
   );
 }

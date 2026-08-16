@@ -171,7 +171,7 @@ export function AiScorePanel({ date }: { date: string }) {
   const statusMessage = tab === 'today'
     ? selectedReady
       ? `今日 AI 评分 ${todayData?.total_score ?? '--'} 分，${todayData?.level ?? '已生成'}。`
-      : '今日暂无 AI 评分。系统每天 17:00、23:50 自动生成；你也可以现在手动生成。'
+      : '今日暂无 AI 评分。系统每天 17:30、23:30 自动生成；你也可以现在手动生成。'
     : tab === 'yesterday'
       ? selectedReady
         ? `昨日 AI 评分 ${yesterdayData?.total_score ?? '--'} 分，${yesterdayData?.level ?? '已生成'}。`

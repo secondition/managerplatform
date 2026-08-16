@@ -2,21 +2,20 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { dayjs, type Dayjs, toApiDate } from '@/lib/date';
 
 interface WeekPagerProps {
-  // Monday of the newest week in the window, or null = latest completed week.
+  // Monday of the newest week in the window, or null = current week.
   anchor: Dayjs | null;
   count: number;
   onChange: (anchor: Dayjs | null) => void;
 }
 
-// Monday of the most recently *completed* week (a week becomes fillable the
-// following Monday), matching the backend's last_completed_week_start.
-function lastCompletedMonday(): Dayjs {
-  return dayjs().startOf('isoWeek').subtract(7, 'day');
+// Monday of the current fillable week, matching the backend window default.
+function currentMonday(): Dayjs {
+  return dayjs().startOf('isoWeek');
 }
 
 // Pages the rolling window by whole pages of `count` weeks.
 export default function WeekPager({ anchor, count, onChange }: WeekPagerProps) {
-  const latest = lastCompletedMonday();
+  const latest = currentMonday();
   const current = anchor ?? latest;
   const isLatest = current.isSame(latest, 'day') || current.isAfter(latest, 'day');
 
